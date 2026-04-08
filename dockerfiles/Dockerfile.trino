@@ -41,8 +41,15 @@ COPY conf/trino/catalog/hudi.properties /opt/trino-server/etc/catalog/hudi.prope
 COPY conf/trino/catalog/hive.properties /opt/trino-server/etc/catalog/hive.properties
 COPY conf/trino/catalog/mysql.properties /opt/trino-server/etc/catalog/mysql.properties
 
-RUN rm -f /opt/trino-server/plugin/hudi/hudi-*.jar || true
-RUN rm -f /opt/trino-server/plugin/hive/hudi-*.jar || true
+# Match Presto image: strip stock Hudi JARs from plugin dirs (keep plugin/hudi folder); then optionally copy jars/trino bundle
+RUN if [ -d /opt/trino-server/plugin/hudi ]; then \
+        echo "Removing stock JARs under plugin/hudi only (keep folder)"; \
+        find /opt/trino-server/plugin/hudi -maxdepth 1 -type f -name '*.jar' -delete; \
+    fi; \
+    if [ -d /opt/trino-server/plugin/hive ]; then \
+        echo "Removing stock Hudi JARs from plugin/hive (hudi*.jar at plugin root)"; \
+        find /opt/trino-server/plugin/hive -maxdepth 1 -type f -name 'hudi*.jar' -delete; \
+    fi
 
 COPY jars/trino/ /tmp/jars-copy/
 RUN mkdir -p /tmp/hudi-bundle-dir && \

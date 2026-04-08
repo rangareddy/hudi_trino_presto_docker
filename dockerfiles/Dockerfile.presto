@@ -27,12 +27,14 @@ RUN set -eux; \
         HIVE_PLUGIN_DIR=${PRESTO_HOME}/plugin/hive; \
     fi; \
     rm -f "${HIVE_PLUGIN_DIR}"/hudi-*.jar 2>/dev/null || true; \
+    rm -f "${PRESTO_HOME}/plugin/hudi/hudi-*.jar" 2>/dev/null || true; \
     if ls /tmp/presto-jars-in/hudi-presto-bundle-*.jar 1>/dev/null 2>&1; then \
-        cp /tmp/presto-jars-in/hudi-presto-bundle-*.jar "${HIVE_PLUGIN_DIR}/"; \
-        echo "Copied hudi-presto-bundle into ${HIVE_PLUGIN_DIR}"; \
+        cp /tmp/presto-jars-in/hudi-presto-bundle-*.jar "${PRESTO_HOME}/plugin/hudi/"; \
+        echo "Copied hudi-presto-bundle into ${PRESTO_HOME}/plugin/hudi"; \
     else \
         echo "No hudi-presto-bundle-*.jar in jars/presto (optional)"; \
     fi; \
+    rm -f "${PRESTO_HOME}/plugin/hudi/hudi-*.jar" 2>/dev/null || true; \
     if [ -d /tmp/presto-jars-in/plugin-hive ]; then \
         find /tmp/presto-jars-in/plugin-hive -maxdepth 1 -name '*.jar' -exec cp {} "${HIVE_PLUGIN_DIR}/" \; ; \
         echo "Merged jars/presto/plugin-hive/*.jar into ${HIVE_PLUGIN_DIR}"; \
@@ -52,6 +54,7 @@ COPY conf/presto/catalog/jvm.config ${PRESTO_HOME}/etc/jvm.config
 COPY conf/presto/catalog/config.properties ${PRESTO_HOME}/etc/config.properties
 COPY conf/presto/catalog/node.properties ${PRESTO_HOME}/etc/node.properties
 COPY conf/presto/catalog/hive.properties ${PRESTO_HOME}/etc/catalog/hive.properties
+COPY conf/presto/catalog/hudi.properties ${PRESTO_HOME}/etc/catalog/hudi.properties
 COPY conf/presto/catalog/memory.properties ${PRESTO_HOME}/etc/catalog/memory.properties
 COPY conf/presto/catalog/mysql.properties ${PRESTO_HOME}/etc/catalog/mysql.properties
 COPY conf/presto/catalog/tpcds.properties ${PRESTO_HOME}/etc/catalog/tpcds.properties
