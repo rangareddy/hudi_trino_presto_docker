@@ -16,40 +16,33 @@ RUN if [ -z "${PRESTO_VERSION}" ]; then \
 ENV PRESTO_VERSION=${PRESTO_VERSION} \
     PRESTO_HOME=/opt/presto-server
 
-COPY jars/presto/ /tmp/presto-jars-in/
-RUN set -eux; \
-    tar -xzf "/tmp/presto-jars-in/presto-server-${PRESTO_VERSION}.tar" -C /opt/; \
-    mv /opt/presto-server-${PRESTO_VERSION} ${PRESTO_HOME}; \
-    mkdir -p ${PRESTO_HOME}/etc ${PRESTO_HOME}/etc/catalog; \
-    if [ -d ${PRESTO_HOME}/plugin/hive-hadoop2 ]; then \
-        HIVE_PLUGIN_DIR=${PRESTO_HOME}/plugin/hive-hadoop2; \
-    else \
-        HIVE_PLUGIN_DIR=${PRESTO_HOME}/plugin/hive; \
-    fi; \
-    echo "Removing stock Hudi JARs from Hive plugin (hudi*.jar, presto-hudi*.jar)"; \
-    find "${HIVE_PLUGIN_DIR}" -maxdepth 1 -type f \( -name 'hudi*.jar' -o -name 'presto-hudi*.jar' \) -delete; \
-    if [ -d "${PRESTO_HOME}/plugin/hudi" ]; then \
-        echo "Removing all JARs under plugin/hudi (keep directory); only jars/presto bundle is copied back"; \
-        find "${PRESTO_HOME}/plugin/hudi" -maxdepth 1 -type f -name '*.jar' -delete; \
-    else \
-        mkdir -p "${PRESTO_HOME}/plugin/hudi"; \
-    fi; \
-    if ls /tmp/presto-jars-in/hudi-presto-bundle-*.jar 1>/dev/null 2>&1; then \
-        cp /tmp/presto-jars-in/hudi-presto-bundle-*.jar "${HIVE_PLUGIN_DIR}/"; \
-        cp /tmp/presto-jars-in/hudi-presto-bundle-*.jar "${PRESTO_HOME}/plugin/hudi/"; \
-        echo "Copied hudi-presto-bundle from jars/presto into ${HIVE_PLUGIN_DIR} and plugin/hudi"; \
-    else \
-        echo "No hudi-presto-bundle-*.jar in jars/presto (optional); plugin/hudi left without Hudi JARs"; \
-    fi; \
-    if [ -d /tmp/presto-jars-in/plugin-hive ]; then \
-        find /tmp/presto-jars-in/plugin-hive -maxdepth 1 -name '*.jar' -exec cp {} "${HIVE_PLUGIN_DIR}/" \; ; \
-        echo "Merged jars/presto/plugin-hive/*.jar into ${HIVE_PLUGIN_DIR}"; \
-    fi; \
-    rm -rf /tmp/presto-jars-in
+COPY jars/presto/presto-server-${PRESTO_VERSION}.tar /opt/presto-server-${PRESTO_VERSION}.tar
+RUN tar -xf /opt/presto-server-${PRESTO_VERSION}.tar -C /opt/ \
+	&& mv /opt/presto-server-${PRESTO_VERSION} ${PRESTO_HOME} \
+	&& rm -f /opt/presto-server-${PRESTO_VERSION}.tar \
+	&& mkdir -p $PRESTO_HOME/etc/catalog
 
 COPY jars/presto/presto-cli-${PRESTO_VERSION}-executable.jar /usr/local/bin/presto-cli
 RUN chmod +x /usr/local/bin/presto-cli \
-	&& ln -sf /usr/local/bin/presto-cli /usr/local/bin/presto
+    && ln -sf /usr/local/bin/presto-cli /usr/local/bin/presto
+
+RUN if [ -d $PRESTO_HOME/plugin/hudi ]; then \
+        find $PRESTO_HOME/plugin/hudi -maxdepth 1 -type f -name 'hudi-presto-bundle*.jar' -delete; \
+    fi; \
+    if [ -d $PRESTO_HOME/plugin/hive ]; then \
+        find $PRESTO_HOME/plugin/hive -maxdepth 1 -type f -name 'hudi-presto-bundle*.jar' -delete; \
+    fi
+
+COPY jars/presto/ /tmp/jars-copy/
+RUN if ls /tmp/jars-copy/hudi-presto-bundle-*.jar 1> /dev/null 2>&1; then \
+        cp /tmp/jars-copy/hudi-presto-bundle-*.jar $PRESTO_HOME/plugin/hudi/ && \
+        cp /tmp/jars-copy/hudi-presto-bundle-*.jar $PRESTO_HOME/plugin/hive/ && \
+        rm -rf /tmp/jars-copy || true; && \
+        echo "✓ Copied Hudi bundle to plugins"; \
+    else \
+        echo "⚠ Warning: Hudi bundle jar not found in jars/ directory, skipping"; \
+        rm -rf /tmp/jars-copy || true; \
+    fi
 
 RUN wget -q https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.16.1/jmx_prometheus_javaagent-0.16.1.jar \
 	&& chmod +x jmx_prometheus_javaagent-0.16.1.jar \

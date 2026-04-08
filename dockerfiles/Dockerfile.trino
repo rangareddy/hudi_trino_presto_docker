@@ -20,12 +20,31 @@ COPY jars/trino/trino-server-${TRINO_VERSION}.tar /opt/trino-server-${TRINO_VERS
 RUN tar -xf /opt/trino-server-${TRINO_VERSION}.tar -C /opt/ \
 	&& mv /opt/trino-server-${TRINO_VERSION} ${TRINO_HOME} \
 	&& rm /opt/trino-server-${TRINO_VERSION}.tar \
-	&& mkdir -p $TRINO_HOME/etc \
 	&& mkdir -p $TRINO_HOME/etc/catalog
 
 COPY jars/trino/trino-cli-${TRINO_VERSION}-executable.jar /usr/local/bin/trino-cli
 RUN chmod +x /usr/local/bin/trino-cli \
 	&& ln -sf /usr/local/bin/trino-cli /usr/local/bin/trino
+
+RUN if [ -d /opt/trino-server/plugin/hudi ]; then \
+        echo "Removing stock hudi-trino-bundle*.jar from plugin/hudi only (keep trino-hudi-*.jar, hdfs/, etc.)"; \
+        find /opt/trino-server/plugin/hudi -maxdepth 1 -type f -name 'hudi-trino-bundle*.jar' -delete; \
+    fi; \
+    if [ -d /opt/trino-server/plugin/hive ]; then \
+        echo "Removing stock hudi-trino-bundle*.jar from plugin/hive before optional custom bundle"; \
+        find /opt/trino-server/plugin/hive -maxdepth 1 -type f -name 'hudi-trino-bundle*.jar' -delete; \
+    fi
+
+COPY jars/trino/ /tmp/jars-copy/
+RUN if ls /tmp/jars-copy/hudi-trino-bundle-*.jar 1> /dev/null 2>&1; then \
+        cp /tmp/jars-copy/hudi-trino-bundle-*.jar /opt/trino-server/plugin/hudi/ && \
+        cp /tmp/jars-copy/hudi-trino-bundle-*.jar /opt/trino-server/plugin/hive/ && \
+        rm -rf /tmp/jars-copy && \
+        echo "✓ Copied Hudi bundle to plugins"; \
+    else \
+        echo "⚠ Warning: Hudi bundle jar not found in jars/ directory, skipping"; \
+        rm -rf /tmp/jars-copy || true; \
+    fi
 
 RUN wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.16.1/jmx_prometheus_javaagent-0.16.1.jar \
 	&& chmod +x jmx_prometheus_javaagent-0.16.1.jar \
@@ -40,29 +59,6 @@ COPY conf/trino/catalog/memory.properties /opt/trino-server/etc/catalog/memory.p
 COPY conf/trino/catalog/hudi.properties /opt/trino-server/etc/catalog/hudi.properties
 COPY conf/trino/catalog/hive.properties /opt/trino-server/etc/catalog/hive.properties
 COPY conf/trino/catalog/mysql.properties /opt/trino-server/etc/catalog/mysql.properties
-
-# Replace only hudi-trino-bundle*.jar — do not remove all JARs under plugin/hudi (trino-hudi-*.jar provides io.trino.spi.Plugin).
-RUN if [ -d /opt/trino-server/plugin/hudi ]; then \
-        echo "Removing stock hudi-trino-bundle*.jar from plugin/hudi only (keep trino-hudi-*.jar, hdfs/, etc.)"; \
-        find /opt/trino-server/plugin/hudi -maxdepth 1 -type f -name 'hudi-trino-bundle*.jar' -delete; \
-    fi; \
-    if [ -d /opt/trino-server/plugin/hive ]; then \
-        echo "Removing stock hudi-trino-bundle*.jar from plugin/hive before optional custom bundle"; \
-        find /opt/trino-server/plugin/hive -maxdepth 1 -type f -name 'hudi-trino-bundle*.jar' -delete; \
-    fi
-
-COPY jars/trino/ /tmp/jars-copy/
-RUN mkdir -p /tmp/hudi-bundle-dir && \
-    if ls /tmp/jars-copy/hudi-trino-bundle-*.jar 1> /dev/null 2>&1; then \
-        cp /tmp/jars-copy/hudi-trino-bundle-*.jar /tmp/hudi-bundle-dir/ && \
-        cp /tmp/hudi-bundle-dir/hudi-trino-bundle-*.jar /opt/trino-server/plugin/hudi/ && \
-        cp /tmp/hudi-bundle-dir/hudi-trino-bundle-*.jar /opt/trino-server/plugin/hive/ && \
-        rm -rf /tmp/hudi-bundle-dir /tmp/jars-copy && \
-        echo "✓ Copied Hudi bundle to plugins"; \
-    else \
-        echo "⚠ Warning: Hudi bundle jar not found in jars/ directory, skipping"; \
-        rm -rf /tmp/hudi-bundle-dir /tmp/jars-copy || true; \
-    fi
 
 COPY conf/trino/catalog/autoconfig_and_launch.sh /opt/autoconfig_and_launch.sh
 RUN chmod a+x /opt/autoconfig_and_launch.sh
