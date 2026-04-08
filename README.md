@@ -89,7 +89,7 @@ From the repo root:
 
 ```sh
 chmod +x build.sh run_spark_trino_hudi.sh
-./build.sh
+bash build.sh
 ```
 
 Useful environment variables (all optional; defaults are set inside `build.sh`):
@@ -113,7 +113,7 @@ export DOCKER_HUB_USERNAME=myrepo
 export TRINO_VERSION=449
 export PRESTO_VERSION=0.287
 export HUDI_VERSION=0.14.2-SNAPSHOT
-./build.sh
+bash build.sh
 ```
 
 Manual builds (same context and Dockerfiles as `build.sh`):

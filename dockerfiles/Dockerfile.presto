@@ -37,7 +37,7 @@ COPY jars/presto/ /tmp/jars-copy/
 RUN if ls /tmp/jars-copy/hudi-presto-bundle-*.jar 1> /dev/null 2>&1; then \
         cp /tmp/jars-copy/hudi-presto-bundle-*.jar $PRESTO_HOME/plugin/hudi/ && \
         cp /tmp/jars-copy/hudi-presto-bundle-*.jar $PRESTO_HOME/plugin/hive/ && \
-        rm -rf /tmp/jars-copy || true; && \
+        rm -rf /tmp/jars-copy && \
         echo "✓ Copied Hudi bundle to plugins"; \
     else \
         echo "⚠ Warning: Hudi bundle jar not found in jars/ directory, skipping"; \
