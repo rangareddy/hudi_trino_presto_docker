@@ -14,6 +14,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Run from repository root (COMPOSE_FILE uses compose/...). Volumes are relative to this file → ../data
+
 services:
   spark-hudi:
     image: $DOCKER_HUB_USERNAME/spark-hudi:latest
@@ -29,7 +31,7 @@ services:
       - "8081:8081"   # Spark Worker UI
       - "18080:18080" # Spark History Server UI
     volumes:
-      - ./data/spark-events:/opt/spark/spark-events
+      - ../data/spark-events:/opt/spark/spark-events
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
@@ -51,7 +53,7 @@ services:
       - "9000:9000"   # S3 API Port
       - "9001:9001"   # MinIO Console UI
     volumes:
-      - ./data/minio:/data
+      - ../data/minio:/data
     healthcheck:
       test: bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1
     networks:

@@ -4,7 +4,7 @@ This repository builds **Spark + Hudi + Jupyter**, **Hive Metastore**, **Trino**
 
 ## What runs in Compose
 
-Core services are always in `docker-compose.yml`. **Trino** and **Presto** are added from `docker-compose.trino.yml` / `docker-compose.presto.yml` when **`ENABLE_TRINO`** / **`ENABLE_PRESTO`** are on in `stack.env`. **`build.sh`** (after successful image builds) and **`run_spark_trino_presto_hudi.sh`** write **`.env.compose`** (`COMPOSE_FILE=...`; gitignored).
+Core services live under **`compose/docker-compose.yml`**. **Trino** and **Presto** use **`compose/docker-compose.trino.yml`** / **`compose/docker-compose.presto.yml`** when **`ENABLE_TRINO`** / **`ENABLE_PRESTO`** are `true` in **`stack.env`**. **`build.sh`** and **`run_spark_trino_presto_hudi.sh`** write **`.env.compose`** (`COMPOSE_FILE=...` with paths under `compose/`; gitignored). Run Compose from the **repository root**.
 
 | Service | Image (default tag prefix) | Role |
 |--------|----------------------------|------|
@@ -20,8 +20,8 @@ Core services are always in `docker-compose.yml`. **Trino** and **Presto** are a
 | Path | Purpose |
 |------|---------|
 | `stack.env` | **Canonical defaults**: versions, `DOCKER_HUB_USERNAME`, `ENABLE_TRINO`, `ENABLE_PRESTO`, `TARGET_PLATFORM`, … |
-| `docker-compose.yml` | Spark, MinIO, `mc`, Hive Metastore |
-| `docker-compose.trino.yml` / `docker-compose.presto.yml` | Query engine fragments (merged per `ENABLE_*`) |
+| `compose/docker-compose.yml` | Spark, MinIO, `mc`, Hive Metastore |
+| `compose/docker-compose.trino.yml` / `compose/docker-compose.presto.yml` | Query engine fragments (merged per `ENABLE_*`) |
 | `build.sh` | Sources `stack.env`, stages `build-notebooks/` from `ENABLE_*`, builds images, writes `.env.compose` |
 | `build-notebooks/` | Gitignored staging dir: `utils.py` plus `hudi_trino_example.ipynb` / `hudi_presto_example.ipynb` when the matching engine is enabled |
 | `run_spark_trino_presto_hudi.sh` | Sources `stack.env`, writes `.env.compose`, then `start` \| `stop` \| `restart` |
@@ -47,13 +47,13 @@ Core services are always in `docker-compose.yml`. **Trino** and **Presto** are a
 
 **Trino** (`dockerfiles/Dockerfile.trino`):
 
-- `jars/trino/trino-server-<TRINO_VERSION>.tar` (plain `.tar`, not `.tar.gz`)
+- `jars/trino/trino-server-<TRINO_VERSION>.tar` **or** `.tar.gz` (Dockerfile prefers `.tar.gz` if both are present)
 - `jars/trino/trino-cli-<TRINO_VERSION>-executable.jar`
 - Optional: `jars/trino/hudi-trino-bundle-*.jar` — replaces stock `hudi-trino-bundle*.jar` in Trino’s `hudi` and `hive` plugins
 
 **Presto** (`dockerfiles/Dockerfile.presto`):
 
-- `jars/presto/presto-server-<PRESTO_VERSION>.tar` (extractable tarball)
+- `jars/presto/presto-server-<PRESTO_VERSION>.tar` **or** `.tar.gz` (Dockerfile prefers `.tar.gz` if both are present)
 - `jars/presto/presto-cli-<PRESTO_VERSION>-executable.jar`
 - `jars/presto/hudi-presto-bundle-<HUDI_VERSION>.jar` — must match **`HUDI_VERSION`** in `stack.env` (copied into `plugin/hudi` and the Hive plugin dir)
 

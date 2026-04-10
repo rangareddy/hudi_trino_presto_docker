@@ -14,17 +14,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-# Merged with docker-compose.yml when ENABLE_PRESTO is true (.env.compose from build.sh / run script).
+# Merged with compose/docker-compose.yml when ENABLE_TRINO is true (.env.compose from build.sh / run script).
 
 services:
-  presto:
-    image: $DOCKER_HUB_USERNAME/presto:latest
-    container_name: presto
+  trino:
+    image: $DOCKER_HUB_USERNAME/trino:latest
+    container_name: trino
     depends_on:
       - hive-metastore
       - minio
     ports:
-      - "8086:8080"   # Presto Web UI / JDBC (prestodb)
-      - "9092:9092"   # JMX Prometheus metrics (if enabled in jvm.config)
+      - "8085:8080"   # Trino Web UI
     networks:
       - hudi-datalake

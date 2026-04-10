@@ -39,12 +39,12 @@ env_is_true() {
     [ "$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')" = "true" ]
 }
 
-compose_files="docker-compose.yml"
+compose_files="compose/docker-compose.yml"
 if env_is_true "${ENABLE_TRINO:-}"; then
-    compose_files="${compose_files}:docker-compose.trino.yml"
+    compose_files="${compose_files}:compose/docker-compose.trino.yml"
 fi
 if env_is_true "${ENABLE_PRESTO:-}"; then
-    compose_files="${compose_files}:docker-compose.presto.yml"
+    compose_files="${compose_files}:compose/docker-compose.presto.yml"
 fi
 printf 'COMPOSE_FILE=%s\n' "$compose_files" >"${SCRIPT_DIR}/.env.compose"
 

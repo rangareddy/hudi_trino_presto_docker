@@ -22,11 +22,20 @@ ENV TRINO_VERSION=${TRINO_VERSION} \
     HUDI_VERSION=${HUDI_VERSION} \
     TRINO_HOME=/opt/trino-server
 
-COPY jars/trino/trino-server-${TRINO_VERSION}.tar /opt/trino-server-${TRINO_VERSION}.tar
-RUN tar -xf /opt/trino-server-${TRINO_VERSION}.tar -C /opt/ \
-	&& mv /opt/trino-server-${TRINO_VERSION} ${TRINO_HOME} \
-	&& rm /opt/trino-server-${TRINO_VERSION}.tar \
-	&& mkdir -p $TRINO_HOME/etc/catalog
+# Accept trino-server-<ver>.tar or .tar.gz (if both exist, .tar.gz is extracted first)
+COPY jars/trino/trino-server-${TRINO_VERSION}.tar* /tmp/trino-dist/
+RUN set -eux; \
+    if [ -f "/tmp/trino-dist/trino-server-${TRINO_VERSION}.tar.gz" ]; then \
+        tar -xzf "/tmp/trino-dist/trino-server-${TRINO_VERSION}.tar.gz" -C /opt/; \
+    elif [ -f "/tmp/trino-dist/trino-server-${TRINO_VERSION}.tar" ]; then \
+        tar -xf "/tmp/trino-dist/trino-server-${TRINO_VERSION}.tar" -C /opt/; \
+    else \
+        echo "ERROR: place jars/trino/trino-server-${TRINO_VERSION}.tar or .tar.gz in build context"; \
+        exit 1; \
+    fi; \
+    mv "/opt/trino-server-${TRINO_VERSION}" "${TRINO_HOME}"; \
+    rm -rf /tmp/trino-dist; \
+    mkdir -p "${TRINO_HOME}/etc/catalog"
 
 COPY jars/trino/trino-cli-${TRINO_VERSION}-executable.jar /usr/local/bin/trino-cli
 RUN chmod +x /usr/local/bin/trino-cli \

@@ -22,11 +22,20 @@ ENV PRESTO_VERSION=${PRESTO_VERSION} \
     HUDI_VERSION=${HUDI_VERSION} \
     PRESTO_HOME=/opt/presto-server
 
-COPY jars/presto/presto-server-${PRESTO_VERSION}.tar /opt/presto-server-${PRESTO_VERSION}.tar
-RUN tar -xf /opt/presto-server-${PRESTO_VERSION}.tar -C /opt/ \
-	&& mv /opt/presto-server-${PRESTO_VERSION} ${PRESTO_HOME} \
-	&& rm -f /opt/presto-server-${PRESTO_VERSION}.tar \
-	&& mkdir -p $PRESTO_HOME/etc/catalog
+# Accept presto-server-<ver>.tar or .tar.gz (glob must match exactly one logical archive; if both exist, .tar.gz is used first)
+COPY jars/presto/presto-server-${PRESTO_VERSION}.tar* /tmp/presto-dist/
+RUN set -eux; \
+    if [ -f "/tmp/presto-dist/presto-server-${PRESTO_VERSION}.tar.gz" ]; then \
+        tar -xzf "/tmp/presto-dist/presto-server-${PRESTO_VERSION}.tar.gz" -C /opt/; \
+    elif [ -f "/tmp/presto-dist/presto-server-${PRESTO_VERSION}.tar" ]; then \
+        tar -xf "/tmp/presto-dist/presto-server-${PRESTO_VERSION}.tar" -C /opt/; \
+    else \
+        echo "ERROR: place jars/presto/presto-server-${PRESTO_VERSION}.tar or .tar.gz in build context"; \
+        exit 1; \
+    fi; \
+    mv "/opt/presto-server-${PRESTO_VERSION}" "${PRESTO_HOME}"; \
+    rm -rf /tmp/presto-dist; \
+    mkdir -p "${PRESTO_HOME}/etc/catalog"
 
 COPY jars/presto/presto-cli-${PRESTO_VERSION}-executable.jar /usr/local/bin/presto-cli
 RUN chmod +x /usr/local/bin/presto-cli \

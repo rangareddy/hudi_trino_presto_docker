@@ -99,12 +99,12 @@ else
 fi
 
 # Regenerate .env.compose after every successful build (COMPOSE_FILE from ENABLE_* in stack.env).
-compose_files="docker-compose.yml"
+compose_files="compose/docker-compose.yml"
 if env_is_true "${ENABLE_TRINO:-}"; then
-    compose_files="${compose_files}:docker-compose.trino.yml"
+    compose_files="${compose_files}:compose/docker-compose.trino.yml"
 fi
 if env_is_true "${ENABLE_PRESTO:-}"; then
-    compose_files="${compose_files}:docker-compose.presto.yml"
+    compose_files="${compose_files}:compose/docker-compose.presto.yml"
 fi
 printf 'COMPOSE_FILE=%s\n' "$compose_files" >"${SCRIPT_DIR}/.env.compose"
 echo "Wrote ${SCRIPT_DIR}/.env.compose"
