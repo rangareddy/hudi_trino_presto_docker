@@ -7,13 +7,19 @@ RUN apt-get update && apt-get install -y less curl python3 nano vim wget awscli 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 ARG PRESTO_VERSION
+ARG HUDI_VERSION
 RUN if [ -z "${PRESTO_VERSION}" ]; then \
         echo "Error: PRESTO_VERSION build argument is required"; \
         exit 1; \
     fi && \
-    echo "Building Presto Docker image with version: ${PRESTO_VERSION}"
+    if [ -z "${HUDI_VERSION}" ]; then \
+        echo "Error: HUDI_VERSION build argument is required"; \
+        exit 1; \
+    fi && \
+    echo "Building Presto Docker image with version: ${PRESTO_VERSION} and Hudi version: ${HUDI_VERSION}"
 
 ENV PRESTO_VERSION=${PRESTO_VERSION} \
+    HUDI_VERSION=${HUDI_VERSION} \
     PRESTO_HOME=/opt/presto-server
 
 COPY jars/presto/presto-server-${PRESTO_VERSION}.tar /opt/presto-server-${PRESTO_VERSION}.tar
@@ -35,7 +41,7 @@ RUN if [ -d "$PRESTO_HOME/plugin/hudi" ]; then \
         find "$PRESTO_HOME/plugin/hive" -maxdepth 1 -type f -name 'hudi-presto-bundle*.jar' -delete; \
     fi
 
-COPY jars/presto/ /tmp/jars-copy/
+COPY jars/presto/hudi-presto-bundle-${HUDI_VERSION}.jar /tmp/jars-copy/
 RUN if ls /tmp/jars-copy/hudi-presto-bundle-*.jar 1> /dev/null 2>&1; then \
         if [ -d "$PRESTO_HOME/plugin/hive-hadoop2" ]; then \
             HIVE_PLUGIN_DIR="$PRESTO_HOME/plugin/hive-hadoop2"; \

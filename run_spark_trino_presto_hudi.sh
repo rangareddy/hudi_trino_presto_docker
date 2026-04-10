@@ -1,20 +1,5 @@
 #!/bin/bash
 
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 set -euo pipefail
 
 state=${1:-"start"}
@@ -36,7 +21,38 @@ get_docker_compose_cmd() {
 
 # Detect and assign the correct compose command
 DOCKER_COMPOSE_CMD=$(get_docker_compose_cmd)
-export DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME:-apachehuditrino}
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+cd "$SCRIPT_DIR"
+STACK_ENV="${SCRIPT_DIR}/stack.env"
+if [ ! -f "$STACK_ENV" ]; then
+    echo "Missing ${STACK_ENV}" >&2
+    exit 1
+fi
+set -a
+# shellcheck source=/dev/null
+source "$STACK_ENV"
+set +a
+
+# Match build.sh: only literal true (any case) enables an engine.
+env_is_true() {
+    [ "$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')" = "true" ]
+}
+
+compose_files="docker-compose.yml"
+if env_is_true "${ENABLE_TRINO:-}"; then
+    compose_files="${compose_files}:docker-compose.trino.yml"
+fi
+if env_is_true "${ENABLE_PRESTO:-}"; then
+    compose_files="${compose_files}:docker-compose.presto.yml"
+fi
+printf 'COMPOSE_FILE=%s\n' "$compose_files" >"${SCRIPT_DIR}/.env.compose"
+
+set -a
+# shellcheck source=/dev/null
+[ -f "$SCRIPT_DIR/.env.compose" ] && . "$SCRIPT_DIR/.env.compose"
+set +a
+export COMPOSE_FILE
 
 case "$state" in
   start)

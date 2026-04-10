@@ -7,13 +7,19 @@ RUN apt-get update && apt-get install -y less curl python3 nano vim wget awscli 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 ARG TRINO_VERSION
+ARG HUDI_VERSION
 RUN if [ -z "${TRINO_VERSION}" ]; then \
         echo "Error: TRINO_VERSION build argument is required"; \
         exit 1; \
     fi && \
-    echo "Building Trino Docker image with version: ${TRINO_VERSION}"
+    if [ -z "${HUDI_VERSION}" ]; then \
+        echo "Error: HUDI_VERSION build argument is required"; \
+        exit 1; \
+    fi && \
+    echo "Building Trino Docker image with version: ${TRINO_VERSION} and Hudi version: ${HUDI_VERSION}"
 
 ENV TRINO_VERSION=${TRINO_VERSION} \
+    HUDI_VERSION=${HUDI_VERSION} \
     TRINO_HOME=/opt/trino-server
 
 COPY jars/trino/trino-server-${TRINO_VERSION}.tar /opt/trino-server-${TRINO_VERSION}.tar
@@ -35,7 +41,7 @@ RUN if [ -d /opt/trino-server/plugin/hudi ]; then \
         find /opt/trino-server/plugin/hive -maxdepth 1 -type f -name 'hudi-trino-bundle*.jar' -delete; \
     fi
 
-COPY jars/trino/ /tmp/jars-copy/
+COPY jars/trino/hudi-trino-bundle-${HUDI_VERSION}.jar /tmp/jars-copy/
 RUN if ls /tmp/jars-copy/hudi-trino-bundle-*.jar 1> /dev/null 2>&1; then \
         cp /tmp/jars-copy/hudi-trino-bundle-*.jar /opt/trino-server/plugin/hudi/ && \
         cp /tmp/jars-copy/hudi-trino-bundle-*.jar /opt/trino-server/plugin/hive/ && \

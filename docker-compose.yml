@@ -88,29 +88,6 @@ services:
     networks:
       - hudi-datalake
 
-  trino:
-    image: $DOCKER_HUB_USERNAME/trino:latest
-    container_name: trino
-    depends_on:
-      - hive-metastore
-      - minio
-    ports:
-      - "8085:8080"   # Trino Web UI
-    networks:
-      - hudi-datalake
-
-  presto:
-    image: $DOCKER_HUB_USERNAME/presto:latest
-    container_name: presto
-    depends_on:
-      - hive-metastore
-      - minio
-    ports:
-      - "8086:8080"   # Presto Web UI / JDBC (prestodb)
-      - "9092:9092"   # JMX Prometheus metrics (if enabled in jvm.config)
-    networks:
-      - hudi-datalake
-
 networks:
   hudi-datalake:
     name: hudi-datalake

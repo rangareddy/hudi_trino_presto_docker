@@ -17,24 +17,38 @@
 
 set -euo pipefail
 
-export HUDI_VERSION=${HUDI_VERSION:-0.14.2-SNAPSHOT}
-export HUDI_VERSION_TAG=${HUDI_VERSION}
-export SPARK_VERSION=${SPARK_VERSION:-3.4.4}
-export HIVE_VERSION=${HIVE_VERSION:-3.1.3}
-export HIVE_VERSION_TAG=${HIVE_VERSION}
-export TRINO_VERSION=${TRINO_VERSION:-449}
-export TRINO_VERSION_TAG=${TRINO_VERSION}
-export TRINO_JAVA_VERSION=${TRINO_JAVA_VERSION:-22}
-export PRESTO_VERSION=${PRESTO_VERSION:-0.296}
-export PRESTO_VERSION_TAG=${PRESTO_VERSION}
-export PRESTO_JAVA_VERSION=${PRESTO_JAVA_VERSION:-17}
-export JAVA_VERSION=${JAVA_VERSION:-11}
-export SCALA_VERSION=${SCALA_VERSION:-2.12}
-export HADOOP_VERSION=${HADOOP_VERSION:-3.3.4}
-export AWS_SDK_VERSION=${AWS_SDK_VERSION:-1.12.772}
-export DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME:-apachehuditrino}
-
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+STACK_ENV="${SCRIPT_DIR}/stack.env"
+if [ ! -f "$STACK_ENV" ]; then
+    echo "Missing ${STACK_ENV}" >&2
+    exit 1
+fi
+set -a
+# shellcheck source=/dev/null
+source "$STACK_ENV"
+set +a
+
+export HUDI_VERSION_TAG="${HUDI_VERSION_TAG:-$HUDI_VERSION}"
+export HIVE_VERSION_TAG="${HIVE_VERSION_TAG:-$HIVE_VERSION}"
+export TRINO_VERSION_TAG="${TRINO_VERSION_TAG:-$TRINO_VERSION}"
+export PRESTO_VERSION_TAG="${PRESTO_VERSION_TAG:-$PRESTO_VERSION}"
+
+# Only the literal true (any case) counts as enabled — not 1, yes, on, etc.
+env_is_true() {
+    [ "$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')" = "true" ]
+}
+
+NOTEBOOK_STAGING="${SCRIPT_DIR}/build-notebooks"
+rm -rf "$NOTEBOOK_STAGING"
+mkdir -p "$NOTEBOOK_STAGING"
+cp "${SCRIPT_DIR}/notebooks/utils.py" "$NOTEBOOK_STAGING/"
+if env_is_true "${ENABLE_TRINO:-}"; then
+    cp "${SCRIPT_DIR}/notebooks/hudi_trino_example.ipynb" "$NOTEBOOK_STAGING/"
+fi
+if env_is_true "${ENABLE_PRESTO:-}"; then
+    cp "${SCRIPT_DIR}/notebooks/hudi_presto_example.ipynb" "$NOTEBOOK_STAGING/"
+fi
+echo "Spark image notebooks (from stack.env): $(ls -1 "$NOTEBOOK_STAGING" | tr '\n' ' ')"
 
 echo "Building Spark Hudi Docker image using Spark version: $SPARK_VERSION and Hudi version: $HUDI_VERSION"
 
@@ -51,28 +65,47 @@ docker build \
 
 echo "Building Hive Docker image using Hive version: $HIVE_VERSION"
 
-export TARGET_PLATFORM=linux/amd64
 docker build \
-    --platform $TARGET_PLATFORM \
+    --platform "$TARGET_PLATFORM" \
     --build-arg HIVE_VERSION="$HIVE_VERSION" \
     -t "$DOCKER_HUB_USERNAME"/hive:latest \
     -t "$DOCKER_HUB_USERNAME"/hive:"$HIVE_VERSION_TAG" \
     -f "$SCRIPT_DIR"/dockerfiles/Dockerfile.hive .
 
-echo "Building Trino Docker image using Trino version: $TRINO_VERSION"
+if env_is_true "${ENABLE_TRINO:-}"; then
+    echo "Building Trino Docker image using Trino version: $TRINO_VERSION"
+    docker build \
+        --build-arg JAVA_VERSION="$TRINO_JAVA_VERSION" \
+        --build-arg HUDI_VERSION="$HUDI_VERSION" \
+        --build-arg TRINO_VERSION="$TRINO_VERSION" \
+        -t "$DOCKER_HUB_USERNAME"/trino:latest \
+        -t "$DOCKER_HUB_USERNAME"/trino:"$TRINO_VERSION_TAG" \
+        -f "$SCRIPT_DIR"/dockerfiles/Dockerfile.trino .
+else
+    echo "Skipping Trino image (set ENABLE_TRINO=true in stack.env to build)"
+fi
 
-docker build \
-    --build-arg JAVA_VERSION="$TRINO_JAVA_VERSION" \
-    --build-arg TRINO_VERSION="$TRINO_VERSION" \
-    -t "$DOCKER_HUB_USERNAME"/trino:latest \
-    -t "$DOCKER_HUB_USERNAME"/trino:"$TRINO_VERSION_TAG" \
-    -f "$SCRIPT_DIR"/dockerfiles/Dockerfile.trino .
+if env_is_true "${ENABLE_PRESTO:-}"; then
+    echo "Building Presto Docker image using Presto version: $PRESTO_VERSION"
+    docker build \
+        --build-arg JAVA_VERSION="$PRESTO_JAVA_VERSION" \
+        --build-arg HUDI_VERSION="$HUDI_VERSION" \
+        --build-arg PRESTO_VERSION="$PRESTO_VERSION" \
+        -t "$DOCKER_HUB_USERNAME"/presto:latest \
+        -t "$DOCKER_HUB_USERNAME"/presto:"$PRESTO_VERSION_TAG" \
+        -f "$SCRIPT_DIR"/dockerfiles/Dockerfile.presto .
+else
+    echo "Skipping Presto image (set ENABLE_PRESTO=true in stack.env to build)"
+fi
 
-echo "Building Presto Docker image using Presto version: $PRESTO_VERSION"
-
-docker build \
-    --build-arg JAVA_VERSION="$PRESTO_JAVA_VERSION" \
-    --build-arg PRESTO_VERSION="$PRESTO_VERSION" \
-    -t "$DOCKER_HUB_USERNAME"/presto:latest \
-    -t "$DOCKER_HUB_USERNAME"/presto:"$PRESTO_VERSION_TAG" \
-    -f "$SCRIPT_DIR"/dockerfiles/Dockerfile.presto .
+# Regenerate .env.compose after every successful build (COMPOSE_FILE from ENABLE_* in stack.env).
+compose_files="docker-compose.yml"
+if env_is_true "${ENABLE_TRINO:-}"; then
+    compose_files="${compose_files}:docker-compose.trino.yml"
+fi
+if env_is_true "${ENABLE_PRESTO:-}"; then
+    compose_files="${compose_files}:docker-compose.presto.yml"
+fi
+printf 'COMPOSE_FILE=%s\n' "$compose_files" >"${SCRIPT_DIR}/.env.compose"
+echo "Wrote ${SCRIPT_DIR}/.env.compose"
+echo "  COMPOSE_FILE=${compose_files}"

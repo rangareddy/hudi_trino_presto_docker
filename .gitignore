@@ -1,3 +1,5 @@
 jars
 data
 .DS_Store
+.env.compose
+build-notebooks
